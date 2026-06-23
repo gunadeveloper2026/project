@@ -1,36 +1,40 @@
-export default function EmployeeTable() {
-  const employees = [
-    {
-      id: 1,
-      name: "John",
-      department: "IT"
-    },
-    {
-      id: 2,
-      name: "David",
-      department: "HR"
-    }
-  ];
+"use client";
+
+import { Eye, Pencil, Trash2 } from "lucide-react";
+
+const employees = [
+  {
+    id: "EMP001",
+    name: "John Doe",
+    department: "IT",
+    email: "john@company.com",
+    status: "Active",
+  },
+  {
+    id: "EMP002",
+    name: "Jane Smith",
+    department: "HR",
+    email: "jane@company.com",
+    status: "Active",
+  },
+];
+
+export default function EmployeeTable({ search }) {
+  const filteredEmployees = employees.filter(
+    (employee) =>
+      employee.name
+        .toLowerCase()
+        .includes((search || "").toLowerCase()) ||
+      employee.id
+        .toLowerCase()
+        .includes((search || "").toLowerCase())
+  );
 
   return (
-    <table className="w-full border">
-      <thead>
-        <tr className="bg-gray-200">
-          <th>ID</th>
-          <th>Name</th>
-          <th>Department</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {employees.map((emp) => (
-          <tr key={emp.id}>
-            <td>{emp.id}</td>
-            <td>{emp.name}</td>
-            <td>{emp.department}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        {/* your table code */}
+      </table>
+    </div>
   );
 }
