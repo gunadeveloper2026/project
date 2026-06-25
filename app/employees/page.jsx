@@ -1,18 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Webcam from "react-webcam";
 import axios from "axios";
-import {
-  Users,
-  Search,
-  UserCheck,
-  UserX,
-} from "lucide-react";
 
 export default function EmployeesPage() {
+  const webcamRef = useRef(null);
+
   const [employees, setEmployees] = useState([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [imageSrc, setImageSrc] = useState(null);
+
+  const [employee, setEmployee] = useState({
+    employee_id: "",
+    full_name: "",
+    department: "",
+    designation: "",
+    phone: "",
+  });
 
   useEffect(() => {
     fetchEmployees();
@@ -20,187 +24,161 @@ export default function EmployeesPage() {
 
   const fetchEmployees = async () => {
     try {
-      console.log("Calling API...");
-
-      const res = await axios.get(
-        "http://127.0.0.1:8000/employees/"
-      );
-
-      console.log("API Response:", res.data);
-
-      // Ensure employees is always an array
-      if (Array.isArray(res.data)) {
-        setEmployees(res.data);
-      } else if (Array.isArray(res.data.employees)) {
-        setEmployees(res.data.employees);
-      } else {
-        console.error("API did not return an array");
-        setEmployees([]);
-      }
-    } catch (error) {
-      console.error("Employee API Error:", error);
-      setEmployees([]);
-    } finally {
-      setLoading(false);
+      const res = await axios.get("http://127.0.0.1:8000/employees/");
+      setEmployees(res.data);
+    } catch (err) {
+      console.log(err);
     }
   };
 
-  const filteredEmployees = employees.filter((emp) =>
-    (emp.full_name || emp.name || "")
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  const captureFace = () => {
+    const image = webcamRef.current.getScreenshot();
+    setImageSrc(image);
+  };
 
-  const activeEmployees = employees.filter(
-    (emp) => emp.status === "Active"
-  ).length;
+  const saveEmployee = async () => {
+    try {
+      await axios.post("http://127.0.0.1:8000/employees/register", {
+        ...employee,
+        image: imageSrc,
+      });
 
-  const inactiveEmployees = employees.filter(
-    (emp) => emp.status === "Inactive"
-  ).length;
+      alert("Employee Registered Successfully");
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0B1120] flex items-center justify-center text-white text-2xl">
-        Loading Employees...
-      </div>
-    );
-  }
+      fetchEmployees();
+
+      setEmployee({
+        employee_id: "",
+        full_name: "",
+        department: "",
+        designation: "",
+        phone: "",
+      });
+
+      setImageSrc(null);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#0B1120] text-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6">
+
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold">
-          Employee Management
-        </h1>
+      <h1 className="text-4xl font-bold mb-8 text-center text-cyan-300">
+        Employee Face Recognition System
+      </h1>
 
-        <p className="text-slate-400 mt-2">
-          Employees fetched from MySQL database
-        </p>
-      </div>
+      <div className="grid lg:grid-cols-2 gap-8">
 
-      {/* Stats */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
+        {/* ================= FORM ================= */}
+        <div className="bg-slate-800/60 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-slate-700">
 
-        <div className="bg-slate-900 p-6 rounded-xl">
-          <div className="flex justify-between">
-            <div>
-              <p>Total Employees</p>
-              <h2 className="text-3xl font-bold">
-                {employees.length}
-              </h2>
-            </div>
-            <Users className="text-blue-500" />
-          </div>
+          <h2 className="text-2xl font-semibold mb-5 text-cyan-400">
+            Register Employee
+          </h2>
+
+          {["employee_id", "full_name", "department", "designation", "phone"].map((field) => (
+            <input
+              key={field}
+              placeholder={field.replace("_", " ").toUpperCase()}
+              className="w-full border border-slate-600 bg-slate-900 text-white p-3 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              value={employee[field]}
+              onChange={(e) =>
+                setEmployee({ ...employee, [field]: e.target.value })
+              }
+            />
+          ))}
+
+          <button
+            onClick={saveEmployee}
+            className="w-full bg-cyan-500 hover:bg-cyan-600 transition-all text-white px-5 py-3 rounded-lg font-semibold mt-2"
+          >
+            Register Employee
+          </button>
         </div>
 
-        <div className="bg-slate-900 p-6 rounded-xl">
-          <div className="flex justify-between">
-            <div>
-              <p>Active Employees</p>
-              <h2 className="text-3xl font-bold text-green-500">
-                {activeEmployees}
-              </h2>
-            </div>
-            <UserCheck className="text-green-500" />
-          </div>
-        </div>
+        {/* ================= CAMERA ================= */}
+        <div className="bg-slate-800/60 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-slate-700">
 
-        <div className="bg-slate-900 p-6 rounded-xl">
-          <div className="flex justify-between">
-            <div>
-              <p>Inactive Employees</p>
-              <h2 className="text-3xl font-bold text-red-500">
-                {inactiveEmployees}
-              </h2>
-            </div>
-            <UserX className="text-red-500" />
-          </div>
-        </div>
+          <h2 className="text-2xl font-semibold mb-5 text-green-400">
+            Face Capture
+          </h2>
 
+          <Webcam
+            ref={webcamRef}
+            screenshotFormat="image/jpeg"
+            className="rounded-xl w-full border border-slate-600"
+          />
+
+          <button
+            onClick={captureFace}
+            className="w-full bg-green-500 hover:bg-green-600 transition-all text-white px-5 py-3 rounded-lg font-semibold mt-4"
+          >
+            Capture Face
+          </button>
+
+          {imageSrc && (
+            <div className="mt-4">
+              <p className="text-sm text-gray-300 mb-2">Preview:</p>
+              <img
+                src={imageSrc}
+                alt="preview"
+                className="rounded-xl border border-slate-600"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-6 relative">
-        <Search
-          size={18}
-          className="absolute left-3 top-3 text-gray-400"
-        />
+      {/* ================= TABLE ================= */}
+      <div className="mt-10 bg-slate-800/60 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-slate-700">
 
-        <input
-          type="text"
-          placeholder="Search employee..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 py-3 px-4"
-        />
-      </div>
+        <h2 className="text-2xl font-semibold mb-5 text-yellow-300">
+          Employees List
+        </h2>
 
-      {/* Table */}
-      <div className="bg-slate-900 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-slate-600 text-slate-300">
+                <th className="p-3">Employee ID</th>
+                <th className="p-3">Name</th>
+                <th className="p-3">Department</th>
+                <th className="p-3">Designation</th>
+                <th className="p-3">Phone</th>
+                <th className="p-3">Status</th>
+              </tr>
+            </thead>
 
-        <table className="w-full">
-
-          <thead className="bg-slate-800">
-            <tr>
-              <th className="p-4 text-left">ID</th>
-              <th className="p-4 text-left">Employee ID</th>
-              <th className="p-4 text-left">Name</th>
-              <th className="p-4 text-left">Department</th>
-              <th className="p-4 text-left">Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-
-            {filteredEmployees.length > 0 ? (
-              filteredEmployees.map((emp) => (
+            <tbody>
+              {employees.map((emp) => (
                 <tr
                   key={emp.id}
-                  className="border-t border-slate-800"
+                  className="border-b border-slate-700 hover:bg-slate-700/40 transition"
                 >
-                  <td className="p-4">{emp.id}</td>
+                  <td className="p-3">{emp.employee_id}</td>
+                  <td className="p-3 font-medium text-cyan-300">{emp.full_name}</td>
+                  <td className="p-3">{emp.department}</td>
+                  <td className="p-3">{emp.designation}</td>
+                  <td className="p-3">{emp.phone}</td>
 
-                  <td className="p-4">
-                    {emp.employee_id}
-                  </td>
-
-                  <td className="p-4">
-                    {emp.full_name || emp.name}
-                  </td>
-
-                  <td className="p-4">
-                    {emp.department}
-                  </td>
-
-                  <td className="p-4">
+                  <td className="p-3">
                     <span
-                      className={`px-3 py-1 rounded-full text-sm ${
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
                         emp.status === "Active"
                           ? "bg-green-500/20 text-green-400"
                           : "bg-red-500/20 text-red-400"
                       }`}
                     >
-                      {emp.status}
+                      {emp.status || "Active"}
                     </span>
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan="5"
-                  className="text-center py-8 text-slate-400"
-                >
-                  No Employees Found
-                </td>
-              </tr>
-            )}
-
-          </tbody>
-
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
       </div>
     </div>
