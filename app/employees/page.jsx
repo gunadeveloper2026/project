@@ -1,186 +1,176 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useRef, useState } from "react";
 import Webcam from "react-webcam";
 import axios from "axios";
 
 export default function EmployeesPage() {
   const webcamRef = useRef(null);
 
-  const [employees, setEmployees] = useState([]);
-  const [imageSrc, setImageSrc] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [employee, setEmployee] = useState(null);
+  const [message, setMessage] = useState("");
 
-  const [employee, setEmployee] = useState({
-    employee_id: "",
-    full_name: "",
-    department: "",
-    designation: "",
-    phone: "",
-  });
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  const fetchEmployees = async () => {
-    try {
-      const res = await axios.get("http://127.0.0.1:8000/employees/");
-      setEmployees(res.data);
-    } catch (err) {
-      console.log(err);
+  const recognizeFace = async () => {
+    if (!webcamRef.current) {
+      alert("Camera not available");
+      return;
     }
-  };
 
-  const captureFace = () => {
     const image = webcamRef.current.getScreenshot();
-    setImageSrc(image);
-  };
 
-  const saveEmployee = async () => {
+    if (!image) {
+      alert("Unable to capture image.");
+      return;
+    }
+
     try {
-      await axios.post("http://127.0.0.1:8000/employees/register", {
-        ...employee,
-        image: imageSrc,
-      });
+      setLoading(true);
+      setEmployee(null);
+      setMessage("");
 
-      alert("Employee Registered Successfully");
+      const res = await axios.post(
+        "http://127.0.0.1:8000/employees/recognize",
+        {
+          image: image,
+        }
+      );
 
-      fetchEmployees();
-
-      setEmployee({
-        employee_id: "",
-        full_name: "",
-        department: "",
-        designation: "",
-        phone: "",
-      });
-
-      setImageSrc(null);
+      if (res.data.success) {
+        setEmployee(res.data.employee);
+        setMessage("✅ Employee Recognized");
+      } else {
+        setMessage("❌ Unknown Face");
+      }
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      setMessage("Recognition Failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6">
+    <div className="min-h-screen bg-slate-900 flex justify-center items-center p-8">
 
-      {/* Header */}
-      <h1 className="text-4xl font-bold mb-8 text-center text-cyan-300">
-        Employee Face Recognition System
-      </h1>
+      <div className="w-full max-w-6xl bg-slate-800 rounded-2xl shadow-2xl p-8">
 
-      <div className="grid lg:grid-cols-2 gap-8">
+        <h1 className="text-4xl font-bold text-center text-cyan-400 mb-8">
+          Face Recognition System
+        </h1>
 
-        {/* ================= FORM ================= */}
-        <div className="bg-slate-800/60 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-slate-700">
+        <div className="grid lg:grid-cols-2 gap-8">
 
-          <h2 className="text-2xl font-semibold mb-5 text-cyan-400">
-            Register Employee
-          </h2>
+          {/* Webcam */}
 
-          {["employee_id", "full_name", "department", "designation", "phone"].map((field) => (
-            <input
-              key={field}
-              placeholder={field.replace("_", " ").toUpperCase()}
-              className="w-full border border-slate-600 bg-slate-900 text-white p-3 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              value={employee[field]}
-              onChange={(e) =>
-                setEmployee({ ...employee, [field]: e.target.value })
-              }
+          <div>
+
+            <Webcam
+              ref={webcamRef}
+              screenshotFormat="image/jpeg"
+              mirrored
+              className="rounded-xl border border-slate-600 w-full"
+              videoConstraints={{
+                width: 640,
+                height: 480,
+                facingMode: "user",
+              }}
             />
-          ))}
 
-          <button
-            onClick={saveEmployee}
-            className="w-full bg-cyan-500 hover:bg-cyan-600 transition-all text-white px-5 py-3 rounded-lg font-semibold mt-2"
-          >
-            Register Employee
-          </button>
+            <button
+              onClick={recognizeFace}
+              disabled={loading}
+              className={`mt-5 w-full py-3 rounded-lg text-lg font-semibold transition ${
+                loading
+                  ? "bg-gray-600 cursor-not-allowed"
+                  : "bg-cyan-500 hover:bg-cyan-600"
+              } text-white`}
+            >
+              {loading ? "Recognizing..." : "Recognize Face"}
+            </button>
+
+          </div>
+
+          {/* Result */}
+
+          <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
+
+            <h2 className="text-2xl font-semibold text-cyan-300 mb-5">
+              Recognition Result
+            </h2>
+
+            {message && (
+              <div className="mb-5 p-3 rounded-lg bg-slate-800 text-white">
+                {message}
+              </div>
+            )}
+
+            {!employee && !loading && (
+              <div className="text-gray-400 text-center mt-20">
+                Capture a face to recognize an employee.
+              </div>
+            )}
+
+            {employee && (
+              <div className="space-y-4">
+
+                <div className="flex justify-center">
+
+                  <img
+                    src={
+                      employee.photo_url
+                        ? employee.photo_url
+                        : "https://via.placeholder.com/180"
+                    }
+                    alt={employee.full_name}
+                    className="w-44 h-44 rounded-full object-cover border-4 border-cyan-500"
+                  />
+
+                </div>
+
+                <div className="space-y-3 text-white">
+
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Employee ID</span>
+                    <span>{employee.employee_id}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Name</span>
+                    <span>{employee.full_name}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Department</span>
+                    <span>{employee.department}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Designation</span>
+                    <span>{employee.designation}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Email</span>
+                    <span>{employee.email}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Phone</span>
+                    <span>{employee.phone}</span>
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+          </div>
+
         </div>
 
-        {/* ================= CAMERA ================= */}
-        <div className="bg-slate-800/60 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-slate-700">
-
-          <h2 className="text-2xl font-semibold mb-5 text-green-400">
-            Face Capture
-          </h2>
-
-          <Webcam
-            ref={webcamRef}
-            screenshotFormat="image/jpeg"
-            className="rounded-xl w-full border border-slate-600"
-          />
-
-          <button
-            onClick={captureFace}
-            className="w-full bg-green-500 hover:bg-green-600 transition-all text-white px-5 py-3 rounded-lg font-semibold mt-4"
-          >
-            Capture Face
-          </button>
-
-          {imageSrc && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-300 mb-2">Preview:</p>
-              <img
-                src={imageSrc}
-                alt="preview"
-                className="rounded-xl border border-slate-600"
-              />
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* ================= TABLE ================= */}
-      <div className="mt-10 bg-slate-800/60 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-slate-700">
-
-        <h2 className="text-2xl font-semibold mb-5 text-yellow-300">
-          Employees List
-        </h2>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-slate-600 text-slate-300">
-                <th className="p-3">Employee ID</th>
-                <th className="p-3">Name</th>
-                <th className="p-3">Department</th>
-                <th className="p-3">Designation</th>
-                <th className="p-3">Phone</th>
-                <th className="p-3">Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {employees.map((emp) => (
-                <tr
-                  key={emp.id}
-                  className="border-b border-slate-700 hover:bg-slate-700/40 transition"
-                >
-                  <td className="p-3">{emp.employee_id}</td>
-                  <td className="p-3 font-medium text-cyan-300">{emp.full_name}</td>
-                  <td className="p-3">{emp.department}</td>
-                  <td className="p-3">{emp.designation}</td>
-                  <td className="p-3">{emp.phone}</td>
-
-                  <td className="p-3">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        emp.status === "Active"
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-red-500/20 text-red-400"
-                      }`}
-                    >
-                      {emp.status || "Active"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-      </div>
     </div>
   );
 }
